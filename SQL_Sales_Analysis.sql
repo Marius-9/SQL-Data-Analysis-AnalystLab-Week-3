@@ -1,0 +1,299 @@
+/*==========================================================
+ Project      : SQL Analysis - Sales Dataset
+ Internship   : Data Analyst Intern - AnalystLab Africa
+ Week         : Week 3 - SQL & Data Querying
+
+ Author       : Marius Mawaba BODJONA
+ Date         : July 2026
+
+ Objective :
+ - Analyze sales data using SQL.
+ - Explore the dataset and understand its structure.
+ - Answer business questions using SQL queries.
+ - Build a strong foundation in SQL for data analysis.
+==========================================================*/
+
+-- =====================================================
+-- 1. DATABASE SETUP
+-- =====================================================
+
+-- Create the Sales database
+CREATE DATABASE Sales;
+GO
+
+-- Use the Sales database
+USE Sales;
+GO
+
+-- =====================================================
+-- 2. DATA EXPLORATION
+-- =====================================================
+
+-- Display the first 10 rows
+SELECT TOP 10 *
+FROM dbo.sales_data_sample;
+
+-- Count the total number of records
+SELECT COUNT(*) AS Total_Records
+FROM dbo.sales_data_sample;
+
+-- Display the table structure
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'sales_data_sample';
+
+-- Display all unique order statuses
+SELECT DISTINCT STATUS
+FROM dbo.sales_data_sample;
+
+-- Count the number of orders by status
+SELECT
+    STATUS,
+    COUNT(*) AS Number_of_Orders
+FROM dbo.sales_data_sample
+GROUP BY STATUS
+ORDER BY Number_of_Orders DESC;
+
+-- ========================================
+-- 3. DATA CLEANING
+-- ========================================
+-- Check for missing values 
+SELECT 
+    COUNT(*) AS Total_Rows,
+    COUNT(SALES) AS Sales_Not_Null,
+    COUNT(PRICEEACH) AS PriceEach_Not_Null,
+    COUNT(ORDERDATE) AS OrderDate_Not_Null
+FROM dbo.sales_data_sample;
+
+-- Check whether SALES can be converted to a numeric data type
+SELECT TOP 10
+    SALES,
+    TRY_CONVERT(decimal(10,2), SALES) AS Sales_Converted
+FROM dbo.sales_data_sample;
+
+-- Check whether PRICEEACH can be converted to a numeric data type
+SELECT TOP 10
+    PRICEEACH,
+    TRY_CONVERT(decimal(10,2), PRICEEACH) AS PriceEach_Converted
+FROM dbo.sales_data_sample;
+
+-- Check whether ORDERDATE can be converted to a numeric data type
+SELECT TOP 10
+    ORDERDATE,
+    TRY_CONVERT(datetime, ORDERDATE) AS OrderDate_Converted
+FROM dbo.sales_data_sample;
+
+-- Check the format of the ORDERDATE column
+SELECT ORDERDATE
+FROM dbo.sales_data_sample;
+ 
+-- Find invalid date values
+SELECT ORDERDATE
+FROM dbo.sales_data_sample
+WHERE TRY_CONVERT(datetime, ORDERDATE, 101) IS NULL;
+
+-- Change the data types of key columns
+-- Change the SALES column data type to DECIMAL
+ALTER TABLE dbo.sales_data_sample
+ALTER COLUMN SALES DECIMAL(10,2);
+
+-- Change the PRICEEACH column data type to DECIMAL
+ALTER TABLE dbo.sales_data_sample
+ALTER COLUMN PRICEEACH DECIMAL(10,2);
+
+-- Change the ORDERDATE column data type to DATETIME
+/*ALTER TABLE dbo.sales_data_sample
+ALTER COLUMN ORDERDATE DATETIME;
+
+Attempt to convert ORDERDATE from NVARCHAR to DATETIME
+This direct conversion failed because the original date format (MM/DD/YYYY)
+was not automatically recognized by SQL Server.*/ 
+
+-- Create a new column to store converted datetime values
+-- This avoids modifying the original column directly
+ALTER TABLE dbo.sales_data_sample
+ADD ORDERDATE_NEW DATETIME;
+
+-- Convert ORDERDATE values into DATETIME format
+-- Style 101 is used because dates are stored as MM/DD/YYYY
+UPDATE dbo.sales_data_sample
+SET ORDERDATE_NEW = TRY_CONVERT(datetime, ORDERDATE, 101);
+
+-- Compare original and converted date values
+SELECT TOP 10
+    ORDERDATE,
+    ORDERDATE_NEW
+FROM dbo.sales_data_sample;
+
+-- Check if all ORDERDATE values were successfully converted
+SELECT COUNT(*) AS Total_Rows,
+       COUNT(ORDERDATE_NEW) AS Converted_Dates
+FROM dbo.sales_data_sample;
+
+-- Display the current table structure after data conversion
+-- This helps us confirm the existing columns and data types
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'sales_data_sample';
+
+-- Remove the old ORDERDATE column
+-- The old column contains text values (nvarchar)
+ALTER TABLE dbo.sales_data_sample
+DROP COLUMN ORDERDATE;
+
+-- Rename the converted datetime column
+-- The new column becomes the official ORDERDATE column
+EXEC sp_rename 
+'dbo.sales_data_sample.OrderDate_New',
+'ORDERDATE',
+'COLUMN';
+
+-- Verify the final table structure
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'sales_data_sample';
+
+-- =======================================
+-- 4. DATA ANALYSIS
+-- =======================================
+-- Calculate the total revenue generated from all orders
+SELECT
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample;
+
+-- Calculate the average sales value per order
+SELECT
+    AVG(SALES) AS Average_Sales
+FROM dbo.sales_data_sample;
+
+-- Calculate total sales generated by each product line
+SELECT
+    PRODUCTLINE,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY PRODUCTLINE
+ORDER BY Total_Sales DESC;
+
+-- Calculate total sales generated by each country
+SELECT
+    COUNTRY,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY COUNTRY
+ORDER BY Total_Sales DESC;
+
+-- Analyze monthly sales performance
+SELECT
+    MONTH(ORDERDATE) AS Sales_Month,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY MONTH(ORDERDATE)
+ORDER BY Sales_Month;
+
+-- Identify the top customers by revenue
+SELECT TOP 10
+    CUSTOMERNAME,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY CUSTOMERNAME
+ORDER BY Total_Sales DESC;
+
+-- Identify the best-selling products by revenue
+SELECT TOP 10
+    PRODUCTCODE,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY PRODUCTCODE
+ORDER BY Total_Sales DESC;
+
+-- Analyze the number of orders by status
+SELECT
+    STATUS,
+    COUNT(*) AS Total_Orders
+FROM dbo.sales_data_sample
+GROUP BY STATUS
+ORDER BY Total_Orders DESC;
+
+-- Analyze total sales by year
+SELECT
+    YEAR(ORDERDATE) AS Sales_Year,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY YEAR(ORDERDATE)
+ORDER BY Sales_Year;
+
+-- Analyze total sales by quarter
+SELECT
+    DATEPART(QUARTER, ORDERDATE) AS Sales_Quarter,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY DATEPART(QUARTER, ORDERDATE)
+ORDER BY Sales_Quarter;
+
+-- Analyze total sales by deal size
+SELECT
+    DEALSIZE,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY DEALSIZE
+ORDER BY Total_Sales DESC;
+
+-- Identify the top 10 cities by sales revenue
+SELECT TOP 10
+    CITY,
+    SUM(SALES) AS Total_Sales
+FROM dbo.sales_data_sample
+GROUP BY CITY
+ORDER BY Total_Sales DESC;
+
+-- Identify the top 10 customers by number of orders
+SELECT TOP 10
+    CUSTOMERNAME,
+    COUNT(ORDERNUMBER) AS Total_Orders
+FROM dbo.sales_data_sample
+GROUP BY CUSTOMERNAME
+ORDER BY Total_Orders DESC;
+
+-- =============================================
+-- 5. KEY FINDINGS
+-- =============================================
+
+-- The dataset generated a total revenue of 10,032,628.85.
+
+-- The average sales value per order is approximately 3,553.89.
+
+-- Classic Cars generated the highest revenue among all product lines.
+
+-- The United States generated the highest sales revenue.
+
+-- Euro Shopping Channel was the highest revenue-generating customer.
+
+-- Product S18_3232 generated the highest sales revenue.
+
+-- Shipped was the most common order status.
+
+-- Sales reached their highest level in 2004.
+
+-- Quarter 4 (Q4) generated the highest sales revenue.
+
+-- Medium-sized deals contributed the largest share of total sales.
+
+-- Madrid was the city with the highest sales revenue.
+
+-- Australian Collectors, Co. placed the highest number of orders.
+
+-- =====================================================
+-- 6. CONCLUSION
+-- =====================================================
+
+-- This project explored and analyzed the Sales dataset using SQL Server.
+-- Data cleaning techniques were applied to correct data types and improve data quality.
+-- SQL queries were used to analyze sales performance, customer behavior, product performance,
+-- geographic distribution, and order status.
+-- The analysis provides valuable business insights that can support data-driven decision-making.
